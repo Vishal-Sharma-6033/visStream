@@ -9,12 +9,15 @@ function Home() {
 
   const [username, setUsername] = useState(user.username || "");
   const [joinRoomId, setJoinRoomId] = useState("");
+  const [formError, setFormError] = useState("");
 
   async function handleCreate(e) {
     e.preventDefault();
     clearError();
+    setFormError("");
 
     if (!username.trim()) {
+      setFormError("Please enter your username.");
       return;
     }
 
@@ -29,8 +32,15 @@ function Home() {
   async function handleJoin(e) {
     e.preventDefault();
     clearError();
+    setFormError("");
 
-    if (!username.trim() || !joinRoomId.trim()) {
+    if (!username.trim()) {
+      setFormError("Please enter your username before joining a room.");
+      return;
+    }
+
+    if (!joinRoomId.trim()) {
+      setFormError("Please enter a room ID.");
       return;
     }
 
@@ -74,6 +84,14 @@ function Home() {
           <p className="muted">Enter room ID and join an ongoing watch party.</p>
           <input
             className="input"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Username"
+            maxLength={32}
+            required
+          />
+          <input
+            className="input"
             value={joinRoomId}
             onChange={(e) => setJoinRoomId(e.target.value.toUpperCase())}
             placeholder="Room ID (e.g. ABC123)"
@@ -86,6 +104,7 @@ function Home() {
         </form>
       </section>
 
+      {formError ? <p className="error-text">{formError}</p> : null}
       {error ? <p className="error-text">{error}</p> : null}
     </main>
   );

@@ -5,6 +5,27 @@ const Room = require("../models/Room");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/ApiError");
 
+function rewritePlaylistUris(content) {
+  return content
+    .split(/\r?\n/)
+    .map((line) => {
+      const trimmed = line.trim();
+
+      // Keep HLS directives/comments and absolute URLs untouched.
+      if (
+        !trimmed ||
+        trimmed.startsWith("#") ||
+        trimmed.startsWith("/") ||
+        /^https?:\/\//i.test(trimmed)
+      ) {
+        return line;
+      }
+
+      return `/hls/${trimmed}`;
+    })
+    .join("\n");
+}
+
 const getRoomPlaylist = asyncHandler(async (req, res) => {
   const { roomId } = req.params;
 
@@ -25,7 +46,10 @@ const getRoomPlaylist = asyncHandler(async (req, res) => {
   res.setHeader("Pragma", "no-cache");
   res.setHeader("Expires", "0");
 
-  res.sendFile(playlistPath);
+  const playlistRaw = fs.readFileSync(playlistPath, "utf8");
+  const playlistWithAbsoluteUris = rewritePlaylistUris(playlistRaw);
+
+  res.status(200).send(playlistWithAbsoluteUris);
 });
 
 module.exports = {

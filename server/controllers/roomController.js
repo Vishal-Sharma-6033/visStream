@@ -65,12 +65,22 @@ const joinRoom = asyncHandler(async (req, res) => {
     room.streamKey = fallbackStreamKey;
   }
 
+  const wasEmptyRoom = room.users.length === 0;
+  const hostMissingBeforeJoin = !room.host;
+
   const existingUser = room.users.find(
     (user) => user.username.toLowerCase() === username.toLowerCase()
   );
 
   if (!existingUser) {
     room.users.push({ username, socketId: null });
+  }
+
+  if (wasEmptyRoom || hostMissingBeforeJoin) {
+    room.host = username;
+  }
+
+  if (!existingUser || wasEmptyRoom || hostMissingBeforeJoin) {
     await room.save();
   }
 

@@ -97,6 +97,8 @@ function registerWatchPartyHandlers(io, socket) {
         return;
       }
 
+      const wasEmptyRoom = room.users.length === 0;
+
       if (!room.streamKey) {
         const fallbackStreamKey = pickDefaultStreamKey();
         if (!fallbackStreamKey) {
@@ -118,6 +120,10 @@ function registerWatchPartyHandlers(io, socket) {
 
       if (existingUser) {
         existingUser.socketId = socket.id;
+      }
+
+      if (wasEmptyRoom || !room.host) {
+        room.host = username;
       }
 
       await room.save();
@@ -279,7 +285,13 @@ function registerWatchPartyHandlers(io, socket) {
     const { roomId, username, hostChanged, newHost, roomEmptied } = removal;
 
     if (roomEmptied) {
-      await Room.deleteOne({ roomId });
+      await Room.updateOne(
+        { roomId },
+        {
+          $pull: { users: { socketId: socket.id } },
+          $set: { isPlaying: false, currentTime: 0 }
+        }
+      );
       return;
     }
 

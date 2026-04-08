@@ -25,12 +25,18 @@ function Room() {
   } = useAppContext();
 
   const [isJoining, setIsJoining] = useState(true);
+  const [joinError, setJoinError] = useState("");
 
   useEffect(() => {
     let active = true;
 
     async function bootstrapRoom() {
       clearError();
+      setJoinError("");
+
+      if (!socket) {
+        return;
+      }
 
       if (!user.username) {
         navigate("/");
@@ -40,9 +46,9 @@ function Room() {
       try {
         await hydrateRoom(roomId);
         await connectToRoomSocket(roomId, user.username);
-      } catch (_err) {
+      } catch (err) {
         if (active) {
-          navigate("/");
+          setJoinError(err?.message || "Unable to join room");
         }
       } finally {
         if (active) {
@@ -56,7 +62,7 @@ function Room() {
     return () => {
       active = false;
     };
-  }, [roomId, user.username, hydrateRoom, connectToRoomSocket, navigate, clearError]);
+  }, [roomId, user.username, socket, hydrateRoom, connectToRoomSocket, navigate, clearError]);
 
   useEffect(() => {
     if (!socket || !roomState?.roomId || !user.username) {
@@ -77,6 +83,17 @@ function Room() {
   const isHost = useMemo(() => roomState?.host === user.username, [roomState?.host, user.username]);
 
   if (isJoining || !roomState) {
+    if (joinError) {
+      return (
+        <main className="app-shell room-shell loading-shell">
+          <div className="panel loader">
+            <p>{joinError}</p>
+            <button className="btn" onClick={() => navigate("/")}>Back to Home</button>
+          </div>
+        </main>
+      );
+    }
+
     return (
       <main className="app-shell room-shell loading-shell">
         <div className="panel loader">Joining room...</div>

@@ -117,6 +117,28 @@ npm start
 - Rooms now auto-pick a stream key from `DEFAULT_STREAM_KEY` (or first `.m3u8` in `public/hls`).
 - Example: if `DEFAULT_STREAM_KEY=video`, backend serves `public/hls/video.m3u8` for new rooms.
 
+### Fix: "Only beep sound" or test pattern video
+
+If you hear a beep and see color bars, you are likely playing a synthetic FFmpeg test stream (not your real video file).
+
+Generate HLS from a real video file:
+
+```bash
+npm run hls:from-file -- /absolute/path/to/your-video.mp4 video
+```
+
+This writes:
+- `public/hls/video.m3u8`
+- `public/hls/video000.ts`, `video001.ts`, ...
+
+Then keep `DEFAULT_STREAM_KEY=video` in `.env`, restart backend, and create a new room.
+
+Optional silent demo stream (no beep):
+
+```bash
+npm run hls:demo:silent
+```
+
 ## Production Notes
 
 - Use a managed MongoDB cluster in production.

@@ -10,6 +10,7 @@ function VideoPlayer({ socket, roomId, roomState, isHost }) {
   const heartbeatRef = useRef(null);
   const seekDebounceRef = useRef(null);
   const [isBuffering, setIsBuffering] = useState(true);
+  const [playbackError, setPlaybackError] = useState("");
 
   const streamUrl = useMemo(() => getStreamUrl(roomId), [roomId]);
 
@@ -25,20 +26,46 @@ function VideoPlayer({ socket, roomId, roomState, isHost }) {
 
     function onCanPlay() {
       setIsBuffering(false);
+      setPlaybackError("");
+    }
+
+    function onVideoError() {
+      setPlaybackError("Unable to play this stream right now.");
+      setIsBuffering(false);
+    }
+
+    function clampCurrentTimeToDuration() {
+      if (!Number.isFinite(video.duration) || video.duration <= 0) {
+        return;
+      }
+
+      if (video.currentTime >= video.duration) {
+        video.currentTime = Math.max(0, video.duration - 0.25);
+      }
     }
 
     video.addEventListener("waiting", onWaiting);
     video.addEventListener("canplay", onCanPlay);
     video.addEventListener("playing", onCanPlay);
+    video.addEventListener("loadedmetadata", clampCurrentTimeToDuration);
+    video.addEventListener("error", onVideoError);
 
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = streamUrl;
     } else if (Hls.isSupported()) {
       const hls = new Hls({
-        lowLatencyMode: true,
+        lowLatencyMode: false,
         enableWorker: true
       });
       hlsRef.current = hls;
+
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data?.fatal) {
+          setPlaybackError(data.details || "HLS playback failed.");
+          setIsBuffering(false);
+        }
+      });
+
       hls.loadSource(streamUrl);
       hls.attachMedia(video);
     }
@@ -47,6 +74,8 @@ function VideoPlayer({ socket, roomId, roomState, isHost }) {
       video.removeEventListener("waiting", onWaiting);
       video.removeEventListener("canplay", onCanPlay);
       video.removeEventListener("playing", onCanPlay);
+      video.removeEventListener("loadedmetadata", clampCurrentTimeToDuration);
+      video.removeEventListener("error", onVideoError);
 
       if (hlsRef.current) {
         hlsRef.current.destroy();
@@ -68,7 +97,11 @@ function VideoPlayer({ socket, roomId, roomState, isHost }) {
 
       remoteChangeRef.current = true;
 
-      const targetTime = Number(payload.currentTime) || 0;
+      let targetTime = Number(payload.currentTime) || 0;
+      if (Number.isFinite(video.duration) && video.duration > 0) {
+        targetTime = Math.min(Math.max(0, targetTime), Math.max(0, video.duration - 0.25));
+      }
+
       if (Math.abs(video.currentTime - targetTime) > 0.35) {
         video.currentTime = targetTime;
       }
@@ -245,6 +278,7 @@ function VideoPlayer({ socket, roomId, roomState, isHost }) {
       <div className="video-wrap">
         <video ref={videoRef} controls playsInline className="video-element" />
         {isBuffering ? <div className="buffer-indicator">Buffering stream...</div> : null}
+        {playbackError ? <div className="buffer-indicator">{playbackError}</div> : null}
       </div>
 
       <p className="muted">{isHost ? "You are host: play/pause/seek controls everyone." : "Host controls playback sync."}</p>

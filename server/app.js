@@ -10,7 +10,9 @@ const streamRoutes = require("./routes/streamRoutes");
 const { notFoundHandler, errorHandler } = require("./middleware/errorHandler");
 
 const app = express();
-const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173")
+const allowedOrigins = (
+  process.env.CLIENT_ORIGIN || "http://localhost:5173,http://localhost:3000"
+)
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
@@ -28,13 +30,20 @@ const corsOptions = {
       return;
     }
 
-    callback(new Error(`Origin ${origin} is not allowed by CORS`));
+    const corsError = new Error(`Origin ${origin} is not allowed by CORS`);
+    corsError.statusCode = 403;
+    callback(corsError);
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 };
 
-app.use(helmet());
+app.use(
+  helmet({
+    // Frontend runs on a different origin in dev (:5173), so media/resources must be loadable cross-origin.
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+  })
+);
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 app.use(express.json({ limit: "1mb" }));
