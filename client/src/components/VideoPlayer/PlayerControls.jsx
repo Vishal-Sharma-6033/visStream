@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 
 const fmt = (s) => {
   const t = Math.round(s || 0);
@@ -13,64 +13,98 @@ const fmt = (s) => {
 export default function PlayerControls({
   isHost, playing, currentTime, duration,
   volume, muted, levels, quality, fullscreen,
+  bufferedPercent,
   onPlay, onPause, onSeek, onVolume, onMute, onQuality, onFullscreen,
+  onSkipBack, onSkipForward,
 }) {
+  const [hoverPct, setHoverPct] = useState(null);
   const pct = duration ? (currentTime / duration) * 100 : 0;
+
+  const hoverTime = useMemo(() => {
+    if (hoverPct === null || !duration) return null;
+    return (hoverPct / 100) * duration;
+  }, [hoverPct, duration]);
 
   const handleSeekBar = useCallback((e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     onSeek(((e.clientX - rect.left) / rect.width) * duration);
   }, [duration, onSeek]);
 
+  const handleSeekHover = useCallback((e) => {
+    if (!duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pctValue = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+    setHoverPct(pctValue);
+  }, [duration]);
+
+  const handleSeekLeave = useCallback(() => setHoverPct(null), []);
+
   return (
-    <div style={bar}>
+    <div className={`player-controls-shell ${fullscreen ? 'is-fullscreen' : ''}`}>
       {/* Progress bar */}
       <div
-        style={{ ...seekRow, cursor: 'pointer' }}
+        className="player-seek-row"
         onClick={handleSeekBar}
+        onMouseMove={handleSeekHover}
+        onMouseLeave={handleSeekLeave}
         title="Seek"
       >
-        <div style={seekTrack}>
-          <div style={{ ...seekFill, width:`${pct}%` }} />
-          <div style={{ ...seekThumb, left:`${pct}%` }} />
+        <div className="player-seek-track">
+          <div className="player-seek-buffer" style={{ width: `${bufferedPercent || 0}%` }} />
+          <div className="player-seek-fill" style={{ width:`${pct}%` }} />
+          <div className="player-seek-thumb" style={{ left:`${pct}%` }} />
+          {hoverPct !== null && (
+            <>
+              <div className="player-seek-hover-line" style={{ left: `${hoverPct}%` }} />
+              <div className="player-seek-preview" style={{ left: `${hoverPct}%` }}>
+                {fmt(hoverTime)}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {/* Controls row */}
-      <div style={controls}>
-        {/* Play / Pause */}
+      <div className="player-controls-row">
+        <div className="player-left-cluster">
         <button
           id="player-play-pause"
-          className="btn-icon"
+          className={`player-icon-btn player-play-btn ${playing ? 'is-playing' : ''}`}
           onClick={playing ? onPause : onPlay}
           title={playing ? 'Pause' : 'Play'}
-          style={iconBtn}
         >
-          {playing ? '⏸' : '▶️'}
+          <span className="icon-text">{playing ? '❚❚' : '▶'}</span>
         </button>
 
-        {/* Time */}
-        <span style={time}>{fmt(currentTime)} / {fmt(duration)}</span>
+        <button className="player-icon-btn" onClick={onSkipBack} title="Back 10s">
+          <span className="icon-text">↺10</span>
+        </button>
+
+        <button className="player-icon-btn" onClick={onSkipForward} title="Forward 10s">
+          <span className="icon-text">10↻</span>
+        </button>
+
+        <span className="player-time-label">{fmt(currentTime)} / {fmt(duration)}</span>
+        </div>
 
         <div style={{ flex:1 }} />
 
-        {/* Volume */}
-        <button className="btn-icon" onClick={onMute} style={iconBtn} title="Toggle mute">
-          {muted || volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊'}
+        <div className="player-right-cluster">
+        <button className="player-icon-btn" onClick={onMute} title="Toggle mute">
+          <span className="icon-text">{muted || volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊'}</span>
         </button>
         <input
           type="range" min={0} max={1} step={0.02} value={muted ? 0 : volume}
           onChange={(e) => onVolume(Number(e.target.value))}
-          style={volSlider}
+          className="player-volume-slider"
           title="Volume"
         />
 
-        {/* Quality selector */}
         {levels.length > 0 && (
           <select
             value={quality}
             onChange={(e) => onQuality(Number(e.target.value))}
-            style={qualSel}
+            className="player-quality-select"
             title="Video quality"
           >
             <option value={-1}>Auto</option>
@@ -78,22 +112,11 @@ export default function PlayerControls({
           </select>
         )}
 
-        {/* Fullscreen */}
-        <button className="btn-icon" onClick={onFullscreen} style={iconBtn} title="Fullscreen">
-          {fullscreen ? '⛶' : '⛶'}
+        <button className="player-icon-btn" onClick={onFullscreen} title="Fullscreen">
+          <span className="icon-text">{fullscreen ? '🗗' : '🗖'}</span>
         </button>
+        </div>
       </div>
     </div>
   );
 }
-
-const bar      = { position:'absolute', bottom:0, left:0, right:0, background:'linear-gradient(transparent, rgba(0,0,0,0.85))', padding:'12px 16px 12px', zIndex:20 };
-const seekRow  = { marginBottom:8 };
-const seekTrack= { position:'relative', height:4, background:'rgba(255,255,255,0.2)', borderRadius:2 };
-const seekFill = { position:'absolute', top:0, left:0, height:'100%', background:'var(--c-accent)', borderRadius:2, transition:'width 0.1s linear' };
-const seekThumb= { position:'absolute', top:'50%', transform:'translate(-50%,-50%)', width:12, height:12, borderRadius:'50%', background:'#fff', boxShadow:'0 0 6px rgba(0,0,0,0.5)' };
-const controls = { display:'flex', alignItems:'center', gap:8 };
-const iconBtn  = { background:'rgba(255,255,255,0.1)', border:'none', borderRadius:6, color:'#fff', cursor:'pointer', width:34, height:34, fontSize:'1rem', display:'flex', alignItems:'center', justifyContent:'center' };
-const time     = { fontSize:'0.8rem', color:'rgba(255,255,255,0.8)', minWidth:90 };
-const volSlider= { width:70, accentColor:'var(--c-accent)', cursor:'pointer' };
-const qualSel  = { background:'rgba(0,0,0,0.6)', border:'1px solid rgba(255,255,255,0.2)', color:'#fff', borderRadius:4, padding:'2px 6px', fontSize:'0.78rem', cursor:'pointer' };

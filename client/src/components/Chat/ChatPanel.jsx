@@ -61,10 +61,10 @@ export default function ChatPanel({ roomId }) {
         <div key={r.id} className="emoji-float" style={{ left: r.x, bottom: r.y }}>{r.emoji}</div>
       ))}
 
-      <div style={panel}>
+      <section style={panel}>
         {/* Header */}
         <div style={header}>
-          <span style={{ fontWeight:700, fontSize:'0.9rem' }}>💬 Chat</span>
+          <span style={{ fontWeight:700, fontSize:'0.9rem' }}>Room Chat</span>
           <span style={{ fontSize:'0.75rem', color:'var(--c-text-dim)' }}>{messages.length} messages</span>
         </div>
 
@@ -118,14 +118,14 @@ export default function ChatPanel({ roomId }) {
             <button id="chat-send-btn" className="btn btn-primary btn-sm" type="submit" disabled={!input.trim()}>→</button>
           </form>
         </div>
-      </div>
+      </section>
     </>
   );
 }
 
-const panel    = { flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:0 };
+const panel    = { flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:0, background:'rgba(255,255,255,0.01)' };
 const header   = { display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 16px', borderBottom:'1px solid var(--c-border)', flexShrink:0 };
-const msgList  = { flex:1, overflowY:'auto', padding:'8px 0', display:'flex', flexDirection:'column', gap:2 };
-const inputRow = { display:'flex', gap:8, padding:'12px', borderTop:'1px solid var(--c-border)', alignItems:'center', flexShrink:0 };
+const msgList  = { flex:1, overflowY:'auto', padding:'10px 4px', display:'flex', flexDirection:'column', gap:4 };
+const inputRow = { display:'flex', gap:8, padding:'12px', borderTop:'1px solid var(--c-border)', alignItems:'center', flexShrink:0, background:'rgba(0,0,0,0.14)' };
 const emojiPicker = { position:'absolute', bottom:'110%', left:0, background:'var(--c-surface2)', border:'1px solid var(--c-border)', borderRadius:'var(--r-md)', padding:8, display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:4, boxShadow:'var(--shadow-lg)', zIndex:100 };
 const emojiBtn = { background:'none', border:'none', cursor:'pointer', fontSize:'1.4rem', padding:4, borderRadius:4, transition:'transform 0.15s' };

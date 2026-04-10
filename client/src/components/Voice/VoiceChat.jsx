@@ -77,9 +77,9 @@ export default function VoiceChat({ roomId }) {
   }, [peers]);
 
   return (
-    <div style={panel}>
+    <section style={panel}>
       <div style={header}>
-        <span style={{ fontWeight:700, fontSize:'0.88rem' }}>🔊 Voice</span>
+        <span style={{ fontWeight:700, fontSize:'0.88rem' }}>Voice Channel</span>
         <div style={{ display:'flex', gap:6 }}>
           {active && (
             <button id="voice-mute-btn" className={`btn-icon btn-sm ${muted ? 'active' : ''}`} onClick={toggleMute} title={muted ? 'Unmute' : 'Mute'}>
@@ -101,7 +101,7 @@ export default function VoiceChat({ roomId }) {
           {/* Self */}
           <div style={peerItem}>
             <div style={{ ...dot, background: muted ? 'var(--c-red)' : 'var(--c-green)' }} />
-            <span style={{ fontSize:'0.8rem' }}>You {muted ? '(muted)' : ''}</span>
+            <span style={{ fontSize:'0.8rem' }}>You {muted ? '(muted)' : '(live)'}</span>
           </div>
           {peers.map(p => (
             <div key={p.socketId} style={peerItem}>
@@ -115,12 +115,12 @@ export default function VoiceChat({ roomId }) {
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
-const panel    = { borderBottom:'1px solid var(--c-border)', padding:'0 0 4px', flexShrink:0 };
-const header   = { display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 16px' };
-const peerList = { padding:'4px 16px 8px', display:'flex', flexDirection:'column', gap:6 };
-const peerItem = { display:'flex', alignItems:'center', gap:8 };
+const panel    = { borderBottom:'1px solid var(--c-border)', padding:'0 0 8px', flexShrink:0, background:'rgba(255,255,255,0.01)' };
+const header   = { display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 16px 10px' };
+const peerList = { padding:'4px 16px 10px', display:'flex', flexDirection:'column', gap:8 };
+const peerItem = { display:'flex', alignItems:'center', gap:8, background:'rgba(255,255,255,0.03)', border:'1px solid var(--c-border)', borderRadius:10, padding:'6px 8px' };
 const dot      = { width:8, height:8, borderRadius:'50%', flexShrink:0 };

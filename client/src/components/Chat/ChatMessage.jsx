@@ -26,12 +26,12 @@ const ChatMessage = memo(({ message, isOwn }) => {
 
 export default ChatMessage;
 
-const row        = { display:'flex', gap:8, padding:'4px 12px', alignItems:'flex-end' };
+const row        = { display:'flex', gap:8, padding:'4px 10px', alignItems:'flex-end' };
 const rowOwn     = { flexDirection:'row-reverse' };
-const avatarImg  = { width:28, height:28, borderRadius:'50%', objectFit:'cover', flexShrink:0, marginBottom:2 };
-const name       = { fontSize:'0.72rem', color:'var(--c-text-dim)', marginBottom:2, marginLeft:2 };
-const bubble     = { borderRadius:12, padding:'7px 12px', fontSize:'0.85rem', lineHeight:1.5, wordBreak:'break-word' };
-const bubbleOther= { background:'var(--c-surface3)', color:'var(--c-text)', borderBottomLeftRadius:2 };
-const bubbleOwn  = { background:'var(--c-accent)', color:'#fff', borderBottomRightRadius:2 };
-const ts         = { fontSize:'0.68rem', color:'var(--c-text-dim)', marginTop:2, marginLeft:2 };
+const avatarImg  = { width:28, height:28, borderRadius:'50%', objectFit:'cover', flexShrink:0, marginBottom:2, border:'1px solid var(--c-border)' };
+const name       = { fontSize:'0.7rem', color:'var(--c-text-dim)', marginBottom:3, marginLeft:2, letterSpacing:'0.02em' };
+const bubble     = { borderRadius:12, padding:'8px 12px', fontSize:'0.84rem', lineHeight:1.55, wordBreak:'break-word', border:'1px solid transparent' };
+const bubbleOther= { background:'rgba(255,255,255,0.06)', color:'var(--c-text)', borderBottomLeftRadius:4, borderColor:'var(--c-border)' };
+const bubbleOwn  = { background:'linear-gradient(135deg, #6c63ff, #4f8dfd)', color:'#fff', borderBottomRightRadius:4, boxShadow:'0 8px 18px rgba(79,141,253,0.25)' };
+const ts         = { fontSize:'0.66rem', color:'var(--c-text-dim)', marginTop:3, marginLeft:3 };
 const system     = { textAlign:'center', fontSize:'0.75rem', color:'var(--c-text-dim)', padding:'4px 0', fontStyle:'italic' };

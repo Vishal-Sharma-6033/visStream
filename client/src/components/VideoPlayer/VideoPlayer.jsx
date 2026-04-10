@@ -21,10 +21,23 @@ export default function VideoPlayer({ src, isHost, roomId }) {
   const [levels,      setLevels]      = useState([]);
   const [quality,     setQuality]     = useState(-1);
   const [fullscreen,  setFullscreen]  = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const [bufferedPercent, setBufferedPercent] = useState(0);
   const [stalledBy,   setStalledBy]   = useState('');
 
   // Suppress echo — when applying a remote command we don't re-emit
   const suppressRef = useRef(false);
+  const hideTimerRef = useRef(null);
+
+  const bumpControls = useCallback(() => {
+    setControlsVisible(true);
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => {
+      const video = videoRef.current;
+      if (!video) return;
+      if (!video.paused) setControlsVisible(false);
+    }, 2200);
+  }, []);
 
   // ── Load HLS source ──────────────────────────────────────
   useEffect(() => {
@@ -33,6 +46,7 @@ export default function VideoPlayer({ src, isHost, roomId }) {
     setReady(false);
     hlsService.attach(video, (lvls) => {
       setReady(true);
+      setControlsVisible(true);
       if (lvls) setLevels(lvls);
     }, (err) => console.error('HLS error:', err));
     hlsService.load(src);
@@ -46,16 +60,28 @@ export default function VideoPlayer({ src, isHost, roomId }) {
 
     const onTime   = () => setCurrentTime(video.currentTime);
     const onDur    = () => setDuration(video.duration);
+    const onProg   = () => {
+      if (!video.duration || !video.buffered?.length) {
+        setBufferedPercent(0);
+        return;
+      }
+      const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+      const pct = Math.max(0, Math.min(100, (bufferedEnd / video.duration) * 100));
+      setBufferedPercent(pct);
+    };
     const onWait   = () => { setBuffering(true);  emit('video:buffer', { isBuffering: true  }); };
     const onPlaying= () => { setBuffering(false); emit('video:buffer', { isBuffering: false }); };
     const onFullsc = () => setFullscreen(!!document.fullscreenElement);
 
     const onPlayEvent = () => {
       setPlaying(true);
+      bumpControls();
       if (!suppressRef.current) emit('video:play', { currentTime: video.currentTime });
     };
     const onPauseEvent = () => {
       setPlaying(false);
+      setControlsVisible(true);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       if (!suppressRef.current) emit('video:pause', { currentTime: video.currentTime });
     };
     const onSeekedEvent = () => {
@@ -64,6 +90,7 @@ export default function VideoPlayer({ src, isHost, roomId }) {
 
     video.addEventListener('timeupdate',     onTime);
     video.addEventListener('durationchange', onDur);
+    video.addEventListener('progress',       onProg);
     video.addEventListener('waiting',        onWait);
     video.addEventListener('playing',        onPlaying);
     video.addEventListener('play',           onPlayEvent);
@@ -74,6 +101,7 @@ export default function VideoPlayer({ src, isHost, roomId }) {
     return () => {
       video.removeEventListener('timeupdate',     onTime);
       video.removeEventListener('durationchange', onDur);
+      video.removeEventListener('progress',       onProg);
       video.removeEventListener('waiting',        onWait);
       video.removeEventListener('playing',        onPlaying);
       video.removeEventListener('play',           onPlayEvent);
@@ -81,7 +109,7 @@ export default function VideoPlayer({ src, isHost, roomId }) {
       video.removeEventListener('seeked',         onSeekedEvent);
       document.removeEventListener('fullscreenchange', onFullsc);
     };
-  }, [emit]);
+  }, [emit, bumpControls]);
 
   // ── Socket sync listeners (guests + host self) ──────────
   useEffect(() => {
@@ -147,10 +175,12 @@ export default function VideoPlayer({ src, isHost, roomId }) {
   // ── Control handlers ──────────────────────────────────────
   const handlePlay = useCallback(() => {
     videoRef.current?.play().catch(() => {});
+    bumpControls();
   }, []);
 
   const handlePause = useCallback(() => {
     videoRef.current?.pause();
+    setControlsVisible(true);
   }, []);
 
   const handleSeek = useCallback((time) => {
@@ -158,6 +188,7 @@ export default function VideoPlayer({ src, isHost, roomId }) {
     if (!video) return;
     video.currentTime = time;
     setCurrentTime(time);
+    bumpControls();
   }, []);
 
   const handleVolume = useCallback((v) => {
@@ -166,6 +197,7 @@ export default function VideoPlayer({ src, isHost, roomId }) {
     video.volume = v;
     setVolume(v);
     setMuted(v === 0);
+    bumpControls();
   }, []);
 
   const handleMute = useCallback(() => {
@@ -173,21 +205,54 @@ export default function VideoPlayer({ src, isHost, roomId }) {
     if (!video) return;
     video.muted = !video.muted;
     setMuted(video.muted);
+    bumpControls();
   }, []);
 
   const handleQuality = useCallback((idx) => {
     hlsService.setQuality(idx);
     setQuality(idx);
+    bumpControls();
   }, []);
 
   const handleFullscreen = useCallback(() => {
     const container = videoRef.current?.parentElement;
     if (!document.fullscreenElement) container?.requestFullscreen();
     else document.exitFullscreen();
+    bumpControls();
+  }, []);
+
+  const handleSkipBack = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const t = Math.max(0, video.currentTime - 10);
+    video.currentTime = t;
+    setCurrentTime(t);
+    bumpControls();
+  }, [bumpControls]);
+
+  const handleSkipForward = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const max = Number.isFinite(video.duration) ? video.duration : Infinity;
+    const t = Math.min(max, video.currentTime + 10);
+    video.currentTime = t;
+    setCurrentTime(t);
+    bumpControls();
+  }, [bumpControls]);
+
+  useEffect(() => {
+    return () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
   }, []);
 
   return (
-    <div style={wrapper}>
+    <div
+      style={wrapper}
+      onMouseMove={bumpControls}
+      onMouseEnter={bumpControls}
+      onTouchStart={bumpControls}
+    >
       {/* Video element */}
       <video
         ref={videoRef}
@@ -223,7 +288,7 @@ export default function VideoPlayer({ src, isHost, roomId }) {
       )}
 
       {/* Controls */}
-      {ready && (
+      {ready && controlsVisible && (
         <PlayerControls
           isHost={isHost}
           playing={playing}
@@ -234,9 +299,12 @@ export default function VideoPlayer({ src, isHost, roomId }) {
           levels={levels}
           quality={quality}
           fullscreen={fullscreen}
+          bufferedPercent={bufferedPercent}
           onPlay={handlePlay}
           onPause={handlePause}
           onSeek={handleSeek}
+          onSkipBack={handleSkipBack}
+          onSkipForward={handleSkipForward}
           onVolume={handleVolume}
           onMute={handleMute}
           onQuality={handleQuality}

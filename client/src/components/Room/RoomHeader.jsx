@@ -44,13 +44,13 @@ export default function RoomHeader({ roomId, roomName, isHost }) {
     <header style={bar}>
       {/* Left — logo + room info */}
       <div style={left}>
-        <span style={{ fontSize:'1.2rem' }}>🎬</span>
+        <div style={logoWrap}>🎬</div>
         <div>
           <div style={roomNameStyle}>{roomName || roomId}</div>
           <div style={meta}>
-            <span className="badge" style={{ fontSize:'0.68rem', padding:'1px 6px' }}>Room: {roomId}</span>
-            <span style={{ fontSize:'0.72rem', color:'var(--c-text-dim)' }}>{members.length} watching</span>
-            {isHost && <span style={{ fontSize:'0.72rem', color:'var(--c-amber)' }}>👑 You are Host</span>}
+            <span className="badge" style={{ fontSize:'0.68rem', padding:'2px 8px' }}>Room: {roomId}</span>
+            <span style={{ fontSize:'0.74rem', color:'var(--c-text-muted)' }}>{members.length} connected</span>
+            {isHost && <span style={hostPill}>Host Session</span>}
           </div>
         </div>
       </div>
@@ -99,7 +99,26 @@ export default function RoomHeader({ roomId, roomName, isHost }) {
 
 const bar       = { display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 20px', borderBottom:'1px solid var(--c-border)', background:'var(--c-surface)', flexShrink:0, zIndex:10 };
 const left      = { display:'flex', alignItems:'center', gap:12 };
-const roomNameStyle = { fontWeight:700, fontSize:'0.95rem', color:'var(--c-text)' };
-const meta      = { display:'flex', alignItems:'center', gap:8, marginTop:2 };
+const roomNameStyle = { fontWeight:700, fontSize:'1rem', color:'var(--c-text)', letterSpacing:'0.01em' };
+const meta      = { display:'flex', alignItems:'center', gap:8, marginTop:3 };
 const actions   = { display:'flex', gap:8, alignItems:'center', position:'relative' };
-const dropdown  = { position:'absolute', top:'110%', right:0, background:'var(--c-surface2)', border:'1px solid var(--c-border)', borderRadius:'var(--r-md)', padding:12, display:'flex', gap:8, minWidth:320, boxShadow:'var(--shadow-lg)', zIndex:100 };
+const dropdown  = { position:'absolute', top:'110%', right:0, background:'var(--c-surface2)', border:'1px solid var(--c-border)', borderRadius:'var(--r-md)', padding:12, display:'flex', gap:8, minWidth:360, boxShadow:'var(--shadow-lg)', zIndex:100 };
+const logoWrap  = {
+  width: 38,
+  height: 38,
+  display: 'grid',
+  placeItems: 'center',
+  borderRadius: 10,
+  background: 'linear-gradient(135deg, rgba(108,99,255,0.25), rgba(59,130,246,0.16))',
+  border: '1px solid var(--c-border)',
+  fontSize: '1.05rem',
+};
+const hostPill  = {
+  fontSize: '0.7rem',
+  color: 'var(--c-amber)',
+  background: 'rgba(245,158,11,0.12)',
+  border: '1px solid rgba(245,158,11,0.35)',
+  borderRadius: 999,
+  padding: '2px 8px',
+  fontWeight: 600,
+};

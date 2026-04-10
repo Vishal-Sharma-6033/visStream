@@ -110,7 +110,42 @@ export default function RoomPage() {
   );
 }
 
-const layout    = { display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:'var(--c-bg)' };
-const main      = { display:'flex', flex:1, overflow:'hidden' };
-const videoArea = { flex:1, display:'flex', flexDirection:'column', overflow:'hidden', position:'relative' };
-const sidebar   = { width:340, display:'flex', flexDirection:'column', borderLeft:'1px solid var(--c-border)', overflow:'hidden', flexShrink:0 };
+const layout    = {
+  display: 'flex',
+  flexDirection: 'column',
+  height: '100vh',
+  overflow: 'hidden',
+  background: 'radial-gradient(circle at 20% 0%, rgba(59,130,246,0.14), transparent 42%), var(--c-bg)',
+};
+
+const main      = {
+  display: 'flex',
+  flex: 1,
+  overflow: 'hidden',
+  gap: 14,
+  padding: 14,
+};
+
+const videoArea = {
+  flex: 1,
+  display: 'flex',
+  flexDirection: 'column',
+  overflow: 'hidden',
+  position: 'relative',
+  border: '1px solid var(--c-border)',
+  borderRadius: '16px',
+  background: 'rgba(10,10,15,0.76)',
+  boxShadow: 'var(--shadow-md)',
+};
+
+const sidebar   = {
+  width: 360,
+  display: 'flex',
+  flexDirection: 'column',
+  overflow: 'hidden',
+  flexShrink: 0,
+  border: '1px solid var(--c-border)',
+  borderRadius: '16px',
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))',
+  boxShadow: 'var(--shadow-md)',
+};
