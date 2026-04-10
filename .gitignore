@@ -1,0 +1,40 @@
+# OS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Environment files (keep .env.example tracked)
+.env
+.env.*
+!.env.example
+client/.env
+server/.env
+
+# Build outputs
+client/dist/
+server/dist/
+build/
+coverage/
+
+# Runtime/temp
+*.pid
+*.seed
+*.pid.lock
+.tmp/
+tmp/
+
+# Uploads generated at runtime
+server/uploads/videos/*
+server/uploads/hls/*
+!server/uploads/videos/.gitkeep
+!server/uploads/hls/.gitkeep
