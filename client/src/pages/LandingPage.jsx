@@ -119,7 +119,7 @@ export default function LandingPage() {
       </section>
 
       {/* Feature cards */}
-      <section style={features}>
+      {/* <section style={features}>
         {FEATURES.map(f => (
           <div key={f.title} className="glass" style={featureCard}>
             <span style={{ fontSize:'2rem' }}>{f.icon}</span>
@@ -127,10 +127,10 @@ export default function LandingPage() {
             <p style={{ fontSize:'0.82rem', lineHeight:1.6 }}>{f.desc}</p>
           </div>
         ))}
-      </section>
+      </section>  */}
 
       <footer style={footer}>
-        <p>Built with ❤️ using MERN + Socket.IO + HLS + WebRTC</p>
+        <p>Built with ❤️ by Vishal Sharma</p>
       </footer>
     </div>
   );
