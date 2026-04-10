@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSocket } from '../../context/SocketContext';
 import { useRoom }   from '../../context/RoomContext';
+import HostVideoUploadPanel from './HostVideoUploadPanel';
 
 export default function RoomHeader({ roomId, roomName, isHost }) {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ export default function RoomHeader({ roomId, roomName, isHost }) {
 
   const [copied,   setCopied]   = useState(false);
   const [showUrl,  setShowUrl]  = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
   const [videoUrl, setVideoUrl] = useState('');
 
   const copyLink = () => {
@@ -32,6 +34,12 @@ export default function RoomHeader({ roomId, roomName, isHost }) {
     setShowUrl(false);
   };
 
+  const handleApplyUploadedVideo = ({ videoUrl: nextUrl, videoId }) => {
+    if (!nextUrl) return;
+    emit('video:change', { videoUrl: nextUrl, videoId });
+    setShowUpload(false);
+  };
+
   return (
     <header style={bar}>
       {/* Left — logo + room info */}
@@ -50,15 +58,19 @@ export default function RoomHeader({ roomId, roomName, isHost }) {
       {/* Right — actions */}
       <div style={actions}>
         {isHost && (
-          <div style={{ position:'relative' }}>
-            <button id="change-video-btn" className="btn btn-ghost btn-sm" onClick={() => setShowUrl(s => !s)}>
-              🎬 Change Video
+          <div style={{ position:'relative', display:'flex', gap:8 }}>
+            <button id="change-video-btn" className="btn btn-ghost btn-sm" onClick={() => { setShowUrl(s => !s); setShowUpload(false); }}>
+              Change Video URL
             </button>
+            <button id="upload-video-btn" className="btn btn-primary btn-sm" onClick={() => { setShowUpload(s => !s); setShowUrl(false); }}>
+              Upload Video
+            </button>
+
             {showUrl && (
               <form onSubmit={handleChangeVideo} style={dropdown}>
                 <input
                   className="input"
-                  placeholder="HLS URL (…/master.m3u8)"
+                  placeholder="HLS URL (.../master.m3u8)"
                   value={videoUrl}
                   onChange={e => setVideoUrl(e.target.value)}
                   style={{ fontSize:'0.82rem' }}
@@ -67,6 +79,12 @@ export default function RoomHeader({ roomId, roomName, isHost }) {
                 <button className="btn btn-primary btn-sm" type="submit">Load</button>
               </form>
             )}
+
+            <HostVideoUploadPanel
+              open={showUpload}
+              onClose={() => setShowUpload(false)}
+              onApplyVideo={handleApplyUploadedVideo}
+            />
           </div>
         )}
 

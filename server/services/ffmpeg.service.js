@@ -18,7 +18,7 @@ const getDuration = (filePath) =>
   });
 
 // Transcode one quality level
-const transcodeOne = (input, outputDir, q) =>
+const transcodeOne = (input, outputDir, q, onProgress) =>
   new Promise((resolve, reject) => {
     const playlist = path.join(outputDir, `${q.name}.m3u8`);
     const segments = path.join(outputDir, `${q.name}_%03d.ts`);
@@ -33,6 +33,11 @@ const transcodeOne = (input, outputDir, q) =>
         `-hls_segment_filename ${segments}`, '-f hls',
       ])
       .output(playlist)
+      .on('progress', (progress) => {
+        // fluent-ffmpeg reports percent 0..100 for the current output.
+        const pct = Math.max(0, Math.min(100, Math.round(progress?.percent || 0)));
+        if (onProgress) onProgress(pct);
+      })
       .on('end', () => resolve(playlist))
       .on('error', reject)
       .run();
@@ -65,8 +70,16 @@ const transcodeToHLS = async (videoId, inputPath, io) => {
 
     for (let i = 0; i < QUALITY_PROFILES.length; i++) {
       const q = QUALITY_PROFILES[i];
-      emit('video:processing', { progress: Math.round((i / QUALITY_PROFILES.length) * 90) });
-      await transcodeOne(inputPath, outDir, q);
+      // Reserve 0-90% for transcoding across quality profiles, keep 10% for finalize/write DB.
+      const stageStart = Math.round((i / QUALITY_PROFILES.length) * 90);
+      const stageSpan = Math.max(1, Math.round(90 / QUALITY_PROFILES.length));
+
+      emit('video:processing', { progress: stageStart });
+      await transcodeOne(inputPath, outDir, q, (stagePct) => {
+        const overall = Math.min(90, stageStart + Math.round((stagePct / 100) * stageSpan));
+        emit('video:processing', { progress: overall });
+      });
+
       qualities.push({ resolution: q.name, bandwidth: q.bw, playlistUrl: `/hls/${id}/${q.name}.m3u8` });
     }
 
@@ -74,6 +87,7 @@ const transcodeToHLS = async (videoId, inputPath, io) => {
     const masterPlaylist = `/hls/${id}/master.m3u8`;
 
     await Video.findByIdAndUpdate(videoId, { status: 'ready', hlsPath: outDir, masterPlaylist, qualities });
+    emit('video:processing', { progress: 100 });
     emit('video:ready', { masterPlaylist });
 
     console.log(`✅  Transcoding complete → ${masterPlaylist}`);
