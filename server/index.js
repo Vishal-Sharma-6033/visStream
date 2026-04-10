@@ -19,9 +19,46 @@ validateEnv();
 const app = express();
 const httpServer = http.createServer(app);
 
+const envOrigins = (process.env.CLIENT_URL || '')
+  .split(',')
+  .map((v) => v.trim())
+  .filter(Boolean);
+
+const defaultOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+const explicitAllowedOrigins = new Set([...defaultOrigins, ...envOrigins]);
+
+const isPrivateLanHost = (host) => {
+  if (!host) return false;
+  if (host === 'localhost' || host === '127.0.0.1') return true;
+  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+  const m = host.match(/^172\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/);
+  if (m) {
+    const second = Number(m[1]);
+    return second >= 16 && second <= 31;
+  }
+  return false;
+};
+
+const isAllowedOrigin = (origin) => {
+  // Allow non-browser tools (no Origin header).
+  if (!origin) return true;
+  if (explicitAllowedOrigins.has(origin)) return true;
+
+  try {
+    const url = new URL(origin);
+    return isPrivateLanHost(url.hostname);
+  } catch {
+    return false;
+  }
+};
+
 const io = new Server(httpServer, {
   cors: {
-    origin: [process.env.CLIENT_URL || 'http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5173'],
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) return callback(null, true);
+      return callback(new Error('CORS_NOT_ALLOWED'));
+    },
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -34,7 +71,10 @@ app.set('io', io);
 
 // ── Middleware ──────────────────────────────────────────────
 app.use(cors({
-  origin: [process.env.CLIENT_URL || 'http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5173'],
+  origin: (origin, callback) => {
+    if (isAllowedOrigin(origin)) return callback(null, true);
+    return callback(new Error('CORS_NOT_ALLOWED'));
+  },
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
