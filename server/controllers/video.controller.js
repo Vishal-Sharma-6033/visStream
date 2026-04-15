@@ -1,4 +1,6 @@
 const Video = require('../models/Video');
+const fs = require('fs');
+const path = require('path');
 const { transcodeToHLS } = require('../services/ffmpeg.service');
 
 // POST /api/videos/upload
@@ -69,4 +71,37 @@ const getVideo = async (req, res) => {
   }
 };
 
-module.exports = { uploadVideo, addExternalVideo, getUserVideos, getVideo };
+// DELETE /api/videos/:id
+const deleteVideo = async (req, res) => {
+  try {
+    const video = await Video.findById(req.params.id);
+    if (!video) return res.status(404).json({ message: 'Video not found' });
+
+    if (video.uploadedBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not allowed to delete this video' });
+    }
+
+    const cleanupTasks = [];
+
+    if (video.originalFile) {
+      cleanupTasks.push(fs.promises.rm(video.originalFile, { force: true }));
+    }
+
+    if (video.hlsPath) {
+      cleanupTasks.push(fs.promises.rm(video.hlsPath, { recursive: true, force: true }));
+    } else if (video.masterPlaylist && !video.isExternal) {
+      const defaultHlsDir = path.join(__dirname, '..', process.env.HLS_DIR || 'uploads/hls', video._id.toString());
+      cleanupTasks.push(fs.promises.rm(defaultHlsDir, { recursive: true, force: true }));
+    }
+
+    await Promise.allSettled(cleanupTasks);
+    await video.deleteOne();
+
+    res.json({ message: 'Video deleted successfully' });
+  } catch (err) {
+    console.error('deleteVideo:', err);
+    res.status(500).json({ message: 'Could not delete video' });
+  }
+};
+
+module.exports = { uploadVideo, addExternalVideo, getUserVideos, getVideo, deleteVideo };

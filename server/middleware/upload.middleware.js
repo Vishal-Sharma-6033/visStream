@@ -11,8 +11,26 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (_req, file, cb) => {
-  const allowed = ['video/mp4', 'video/mpeg', 'video/quicktime', 'video/x-msvideo', 'video/webm', 'video/x-matroska'];
-  cb(allowed.includes(file.mimetype) ? null : new Error('Only video files are allowed'), allowed.includes(file.mimetype));
+  const allowedMime = [
+    'video/mp4',
+    'video/mpeg',
+    'video/quicktime',
+    'video/x-msvideo',
+    'video/webm',
+    'video/x-matroska',
+    'video/x-m4v',
+    'video/3gpp',
+    'video/ogg',
+  ];
+  const ext = path.extname(file.originalname || '').toLowerCase();
+  const allowedExt = new Set(['.mp4', '.mov', '.m4v', '.avi', '.mkv', '.webm', '.mpeg', '.mpg', '.3gp', '.ogv']);
+
+  const isVideoMime = typeof file.mimetype === 'string' && file.mimetype.startsWith('video/');
+  const mimeAllowed = allowedMime.includes(file.mimetype) || isVideoMime;
+  const extAllowed = allowedExt.has(ext);
+  const ok = mimeAllowed || extAllowed;
+
+  cb(ok ? null : new Error('Only video files are allowed'), ok);
 };
 
 const upload = multer({ storage, fileFilter, limits: { fileSize: 2 * 1024 * 1024 * 1024 } }); // 2 GB

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../../services/api.service';
 import { useSocket } from '../../context/SocketContext';
 
@@ -30,6 +30,9 @@ export default function HostVideoUploadPanel({ open, onClose, onApplyVideo }) {
 
   const [videoIdToPoll, setVideoIdToPoll] = useState('');
   const [resolvedVideo, setResolvedVideo] = useState(null);
+  const [myVideos, setMyVideos] = useState([]);
+  const [loadingMyVideos, setLoadingMyVideos] = useState(false);
+  const [deletingVideoId, setDeletingVideoId] = useState('');
 
   const intervalRef = useRef(null);
 
@@ -38,6 +41,20 @@ export default function HostVideoUploadPanel({ open, onClose, onApplyVideo }) {
     return toAbsoluteUrl(source);
   }, [resolvedVideo]);
 
+  const fetchMyVideos = useCallback(async () => {
+    setLoadingMyVideos(true);
+    try {
+      const { data } = await api.get('/api/videos/my');
+      const videos = Array.isArray(data?.videos) ? data.videos : [];
+      const playable = videos.filter((video) => Boolean(video?.masterPlaylist || video?.externalUrl));
+      setMyVideos(playable);
+    } catch {
+      setError((prev) => prev || 'Could not load uploaded videos.');
+    } finally {
+      setLoadingMyVideos(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!open) {
       setError('');
@@ -45,8 +62,11 @@ export default function HostVideoUploadPanel({ open, onClose, onApplyVideo }) {
       setBusy(false);
       setUploadPercent(null);
       setProcessingPercent(null);
+      return;
     }
-  }, [open]);
+
+    fetchMyVideos();
+  }, [open, fetchMyVideos]);
 
   useEffect(() => {
     const handleProcessing = ({ videoId, progress }) => {
@@ -97,6 +117,7 @@ export default function HostVideoUploadPanel({ open, onClose, onApplyVideo }) {
           setProcessingPercent(100);
           setUploadPercent(null);
           setVideoIdToPoll('');
+          fetchMyVideos();
           if (intervalRef.current) clearInterval(intervalRef.current);
           intervalRef.current = null;
           return;
@@ -126,7 +147,7 @@ export default function HostVideoUploadPanel({ open, onClose, onApplyVideo }) {
       if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = null;
     };
-  }, [videoIdToPoll]);
+  }, [videoIdToPoll, fetchMyVideos]);
 
   const handleLocalUpload = async (e) => {
     e.preventDefault();
@@ -196,10 +217,48 @@ export default function HostVideoUploadPanel({ open, onClose, onApplyVideo }) {
       setResolvedVideo(data?.video || null);
       setStatusText('External stream saved. HLS URL is ready.');
       setBusy(false);
+      fetchMyVideos();
     } catch (err) {
       setBusy(false);
       setError(err?.response?.data?.message || 'Could not save external stream.');
     }
+  };
+
+  const handleDeleteVideo = async (video) => {
+    if (!video?._id || deletingVideoId) return;
+    const confirmed = window.confirm(`Delete "${video.title}"?`);
+    if (!confirmed) return;
+
+    setError('');
+    setDeletingVideoId(video._id);
+
+    try {
+      await api.delete(`/api/videos/${video._id}`);
+      setMyVideos((prev) => prev.filter((v) => v._id !== video._id));
+
+      if (resolvedVideo?._id === video._id) {
+        setResolvedVideo(null);
+      }
+
+      setStatusText('Video deleted successfully.');
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Could not delete video.');
+    } finally {
+      setDeletingVideoId('');
+    }
+  };
+
+  const handleUseExistingVideo = (video) => {
+    const source = video?.masterPlaylist || video?.externalUrl || '';
+    const absoluteUrl = toAbsoluteUrl(source);
+    if (!absoluteUrl) return;
+
+    setResolvedVideo(video);
+    onApplyVideo?.({
+      videoUrl: absoluteUrl,
+      videoId: video?._id || null,
+    });
+    setStatusText('Video applied to room.');
   };
 
   const handleCopyHls = async () => {
@@ -343,6 +402,54 @@ export default function HostVideoUploadPanel({ open, onClose, onApplyVideo }) {
           </div>
         </div>
       )}
+
+      <div style={libraryWrap}>
+        <div style={libraryTitle}>Uploaded HLS Videos</div>
+
+        {loadingMyVideos ? (
+          <div style={libraryEmpty}>Loading uploaded videos...</div>
+        ) : myVideos.length === 0 ? (
+          <div style={libraryEmpty}>No uploaded HLS videos yet.</div>
+        ) : (
+          <div style={libraryList}>
+            {myVideos.map((video) => {
+              const source = video.masterPlaylist || video.externalUrl || '';
+              const playableUrl = toAbsoluteUrl(source);
+              const deleting = deletingVideoId === video._id;
+
+              return (
+                <div key={video._id} style={libraryItem}>
+                  <div style={libraryMeta}>
+                    <div style={libraryName}>{video.title || 'Untitled video'}</div>
+                    <div style={libraryInfo}>
+                      {video.isExternal ? 'External HLS' : 'Local HLS'} • {video.status}
+                    </div>
+                  </div>
+
+                  <div style={libraryActions}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => handleUseExistingVideo(video)}
+                      disabled={!playableUrl || video.status !== 'ready' || deleting}
+                    >
+                      Use
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-sm"
+                      onClick={() => handleDeleteVideo(video)}
+                      disabled={deleting}
+                    >
+                      {deleting ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -443,4 +550,65 @@ const processingFill = {
   height: '100%',
   background: 'linear-gradient(90deg, var(--c-green), var(--c-blue))',
   transition: 'width 200ms ease',
+};
+
+const libraryWrap = {
+  marginTop: 12,
+  paddingTop: 10,
+  borderTop: '1px solid var(--c-border)',
+};
+
+const libraryTitle = {
+  fontSize: '0.85rem',
+  fontWeight: 700,
+  marginBottom: 8,
+};
+
+const libraryEmpty = {
+  fontSize: '0.8rem',
+  color: 'var(--c-text-muted)',
+  padding: '6px 0',
+};
+
+const libraryList = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 8,
+  maxHeight: 190,
+  overflowY: 'auto',
+  paddingRight: 2,
+};
+
+const libraryItem = {
+  border: '1px solid var(--c-border)',
+  borderRadius: 'var(--r-sm)',
+  padding: 8,
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 10,
+};
+
+const libraryMeta = {
+  minWidth: 0,
+};
+
+const libraryName = {
+  fontSize: '0.85rem',
+  fontWeight: 600,
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+};
+
+const libraryInfo = {
+  fontSize: '0.75rem',
+  color: 'var(--c-text-muted)',
+  marginTop: 2,
+};
+
+const libraryActions = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
 };

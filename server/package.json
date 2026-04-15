@@ -4,7 +4,7 @@
   "description": "visStream real-time server with Socket.IO, HLS streaming and WebRTC signaling",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon index.js",
+    "dev": "nodemon --ignore 'uploads/**' index.js",
     "start": "node index.js"
   },
   "dependencies": {
