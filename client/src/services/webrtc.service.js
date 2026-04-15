@@ -36,6 +36,12 @@ class WebRTCService {
     return this.localStream;
   }
 
+  getOrCreatePeer(remoteSocketId) {
+    const existing = this.peers.get(remoteSocketId);
+    if (existing && existing.connectionState !== 'closed') return existing;
+    return this.createPeer(remoteSocketId);
+  }
+
   createPeer(remoteSocketId) {
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
@@ -65,7 +71,9 @@ class WebRTCService {
 
   async initiateCall(remoteSocketId) {
     await this.getLocalStream();
-    const pc    = this.createPeer(remoteSocketId);
+    const pc = this.getOrCreatePeer(remoteSocketId);
+    if (pc.signalingState !== 'stable') return;
+
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
     this.socket?.emit('webrtc:offer', { targetSocketId: remoteSocketId, offer });
@@ -73,7 +81,7 @@ class WebRTCService {
 
   async handleOffer(fromSocketId, offer) {
     await this.getLocalStream();
-    const pc = this.createPeer(fromSocketId);
+    const pc = this.getOrCreatePeer(fromSocketId);
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
@@ -108,6 +116,9 @@ class WebRTCService {
     this.peers.clear();
     this.localStream?.getTracks().forEach((t) => t.stop());
     this.localStream = null;
+    this.isMuted = false;
+    this.socket = null;
+    this.onTrack = null;
   }
 }
 

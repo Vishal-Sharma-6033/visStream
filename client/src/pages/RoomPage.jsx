@@ -93,7 +93,7 @@ function RoomInner() {
         {/* Right sidebar */}
         <aside style={sidebar}>
           <UserList />
-          <VoiceChat roomId={id} />
+          <VoiceChat />
           <ChatPanel roomId={id} />
         </aside>
       </div>

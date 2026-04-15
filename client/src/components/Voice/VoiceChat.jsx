@@ -1,11 +1,9 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useSocket } from '../../context/SocketContext';
-import { useAuth }   from '../../context/AuthContext';
 import webrtcService from '../../services/webrtc.service';
 
-export default function VoiceChat({ roomId }) {
+export default function VoiceChat() {
   const { socket, on, off, emit } = useSocket();
-  const { user } = useAuth();
 
   const [active,  setActive]  = useState(false);
   const [muted,   setMuted]   = useState(false);
@@ -17,21 +15,36 @@ export default function VoiceChat({ roomId }) {
     setPeers(p => {
       const exists = p.find(x => x.socketId === socketId);
       if (exists) return p.map(x => x.socketId === socketId ? { ...x, stream } : x);
-      return [...p, { socketId, stream, username: socketId, isMuted: false }];
+      return [...p, { socketId, stream, username: socketId.slice(0, 6), isMuted: false }];
+    });
+  }, []);
+
+  const upsertPeer = useCallback((socketId, patch) => {
+    setPeers((prev) => {
+      const idx = prev.findIndex((p) => p.socketId === socketId);
+      if (idx === -1) return [...prev, { socketId, username: socketId.slice(0, 6), isMuted: false, ...patch }];
+      const next = [...prev];
+      next[idx] = { ...next[idx], ...patch };
+      return next;
     });
   }, []);
 
   const joinVoice = useCallback(async () => {
+    if (!socket.current) return;
     webrtcService.init(socket.current, handleRemoteTrack);
     await webrtcService.getLocalStream();
+    emit('voice:join');
+    setMuted(false);
     setActive(true);
-  }, [socket, handleRemoteTrack]);
+  }, [socket, handleRemoteTrack, emit]);
 
   const leaveVoice = useCallback(() => {
+    emit('voice:leave');
     webrtcService.destroy();
     setActive(false);
+    setMuted(false);
     setPeers([]);
-  }, []);
+  }, [emit]);
 
   const toggleMute = useCallback(() => {
     const nowMuted = webrtcService.toggleMute();
@@ -43,29 +56,67 @@ export default function VoiceChat({ roomId }) {
   useEffect(() => {
     if (!active) return;
 
-    const onOffer    = async ({ fromSocketId, offer })   => { await webrtcService.handleOffer(fromSocketId, offer); };
-    const onAnswer   = async ({ fromSocketId, answer })  => { await webrtcService.handleAnswer(fromSocketId, answer); };
-    const onIce      = async ({ fromSocketId, candidate })=> { await webrtcService.handleIceCandidate(fromSocketId, candidate); };
-    const onUserJoin = async ({ socketId }) => { if (socketId !== socket.current?.id) await webrtcService.initiateCall(socketId); };
-    const onUserLeave= ({ socketId }) => { webrtcService.disconnectPeer(socketId); setPeers(p => p.filter(x => x.socketId !== socketId)); };
-    const onVoiceMute= ({ socketId, isMuted }) => { setPeers(p => p.map(x => x.socketId === socketId ? { ...x, isMuted } : x)); };
+    const onOffer = async ({ fromSocketId, fromUsername, offer }) => {
+      upsertPeer(fromSocketId, { username: fromUsername || fromSocketId.slice(0, 6) });
+      await webrtcService.handleOffer(fromSocketId, offer);
+    };
+    const onAnswer = async ({ fromSocketId, fromUsername, answer }) => {
+      upsertPeer(fromSocketId, { username: fromUsername || fromSocketId.slice(0, 6) });
+      await webrtcService.handleAnswer(fromSocketId, answer);
+    };
+    const onIce = async ({ fromSocketId, candidate }) => {
+      await webrtcService.handleIceCandidate(fromSocketId, candidate);
+    };
+    const onRoomUserLeave = ({ socketId }) => {
+      webrtcService.disconnectPeer(socketId);
+      setPeers((p) => p.filter((x) => x.socketId !== socketId));
+    };
+    const onVoiceParticipants = async ({ participants }) => {
+      for (const peer of participants || []) {
+        if (peer.socketId === socket.current?.id) continue;
+        upsertPeer(peer.socketId, { username: peer.username, isMuted: !!peer.isMuted });
+        await webrtcService.initiateCall(peer.socketId);
+      }
+    };
+    const onVoiceUserJoin = async ({ socketId, username, isMuted }) => {
+      if (socketId === socket.current?.id) return;
+      upsertPeer(socketId, { username, isMuted: !!isMuted });
+      await webrtcService.initiateCall(socketId);
+    };
+    const onVoiceUserLeave = ({ socketId }) => {
+      webrtcService.disconnectPeer(socketId);
+      setPeers((p) => p.filter((x) => x.socketId !== socketId));
+    };
+    const onVoiceMute = ({ socketId, isMuted, username }) => {
+      upsertPeer(socketId, { isMuted: !!isMuted, ...(username ? { username } : {}) });
+    };
 
     on('webrtc:offer',        onOffer);
     on('webrtc:answer',       onAnswer);
     on('webrtc:ice-candidate',onIce);
-    on('room:user-joined',    onUserJoin);
-    on('room:user-left',      onUserLeave);
+    on('room:user-left',      onRoomUserLeave);
+    on('voice:participants',  onVoiceParticipants);
+    on('voice:user-joined',   onVoiceUserJoin);
+    on('voice:user-left',     onVoiceUserLeave);
     on('voice:mute',          onVoiceMute);
 
     return () => {
       off('webrtc:offer',        onOffer);
       off('webrtc:answer',       onAnswer);
       off('webrtc:ice-candidate',onIce);
-      off('room:user-joined',    onUserJoin);
-      off('room:user-left',      onUserLeave);
+      off('room:user-left',      onRoomUserLeave);
+      off('voice:participants',  onVoiceParticipants);
+      off('voice:user-joined',   onVoiceUserJoin);
+      off('voice:user-left',     onVoiceUserLeave);
       off('voice:mute',          onVoiceMute);
     };
-  }, [active, on, off, socket]);
+  }, [active, on, off, socket, upsertPeer]);
+
+  useEffect(() => {
+    return () => {
+      webrtcService.destroy();
+    };
+  }, []);
 
   // Attach streams to audio elements
   useEffect(() => {
