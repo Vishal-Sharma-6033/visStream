@@ -64,6 +64,20 @@ cd client && npm run dev
 
 Open **http://localhost:5173**
 
+### Default Test Login (development)
+
+The server auto-creates a default test user on startup in non-production environments:
+
+- Email: `test@gmail.com`
+- Password: `123123`
+
+You can customize or disable this in `server/.env`:
+
+- `ENABLE_DEFAULT_TEST_USER=true|false`
+- `DEFAULT_TEST_EMAIL`
+- `DEFAULT_TEST_PASSWORD`
+- `DEFAULT_TEST_USERNAME`
+
 ---
 
 ## Environment Variables

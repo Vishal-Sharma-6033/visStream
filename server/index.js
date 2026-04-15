@@ -12,6 +12,7 @@ const { validateEnv } = require('./config/env');
 const authRoutes = require('./routes/auth');
 const roomRoutes = require('./routes/room');
 const videoRoutes = require('./routes/video');
+const { ensureDefaultTestUser } = require('./services/defaultUser.service');
 const initializeSocket = require('./socket');
 
 validateEnv();
@@ -112,7 +113,8 @@ initializeSocket(io);
 const PORT = process.env.PORT || 5000;
 
 connectDB()
-  .then(() => {
+  .then(async () => {
+    await ensureDefaultTestUser();
     httpServer.listen(PORT, () => {
       console.log(`\n🚀  visStream Server  →  http://localhost:${PORT}`);
       console.log(`📡  Socket.IO ready`);

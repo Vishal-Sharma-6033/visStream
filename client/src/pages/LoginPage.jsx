@@ -11,6 +11,12 @@ export default function LoginPage() {
   const [error,    setError]    = useState('');
   const [loading,  setLoading]  = useState(false);
 
+  const fillTestCredentials = () => {
+    setMode('login');
+    setError('');
+    setForm((prev) => ({ ...prev, email: 'test@gmail.com', password: '123123' }));
+  };
+
   const handleChange = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
   const handleSubmit = async (e) => {
@@ -75,6 +81,18 @@ export default function LoginPage() {
             <button id="auth-submit-btn" className="btn btn-primary" type="submit" disabled={loading} style={{ marginTop:4 }}>
               {loading ? '…' : mode === 'login' ? 'Sign In →' : 'Create Account →'}
             </button>
+
+            {mode === 'login' && (
+              <button type="button" className="btn" onClick={fillTestCredentials} disabled={loading}>
+                Use Test Account
+              </button>
+            )}
+
+            {mode === 'login' && (
+              <p style={{ textAlign:'center', fontSize:'0.78rem', color:'var(--c-text-dim)' }}>
+                Test login: test@gmail.com / 123123
+              </p>
+            )}
           </form>
 
           <p style={{ textAlign:'center', marginTop:20, fontSize:'0.83rem', color:'var(--c-text-dim)' }}>
