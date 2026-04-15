@@ -111,12 +111,13 @@ initializeSocket(io);
 
 // ── Start Server ────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || '0.0.0.0';
 
 connectDB()
   .then(async () => {
     await ensureDefaultTestUser();
-    httpServer.listen(PORT, () => {
-      console.log(`\n🚀  visStream Server  →  http://localhost:${PORT}`);
+    httpServer.listen(PORT, HOST, () => {
+      console.log(`\n🚀  visStream Server  →  http://${HOST}:${PORT}`);
       console.log(`📡  Socket.IO ready`);
       console.log(`🎬  HLS streaming enabled`);
       console.log(`🌍  Accepting connections from ${process.env.CLIENT_URL || 'http://localhost:5173'}\n`);

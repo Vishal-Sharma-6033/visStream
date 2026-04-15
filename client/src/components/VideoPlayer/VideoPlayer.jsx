@@ -24,6 +24,7 @@ export default function VideoPlayer({ src, isHost, roomId }) {
   const [controlsVisible, setControlsVisible] = useState(true);
   const [bufferedPercent, setBufferedPercent] = useState(0);
   const [stalledBy,   setStalledBy]   = useState('');
+  const lastBufferEmitRef = useRef(false);
 
   // Suppress echo — when applying a remote command we don't re-emit
   const suppressRef = useRef(false);
@@ -69,8 +70,14 @@ export default function VideoPlayer({ src, isHost, roomId }) {
       const pct = Math.max(0, Math.min(100, (bufferedEnd / video.duration) * 100));
       setBufferedPercent(pct);
     };
-    const onWait   = () => { setBuffering(true);  emit('video:buffer', { isBuffering: true  }); };
-    const onPlaying= () => { setBuffering(false); emit('video:buffer', { isBuffering: false }); };
+    const emitBufferState = (next) => {
+      if (lastBufferEmitRef.current === next) return;
+      lastBufferEmitRef.current = next;
+      emit('video:buffer', { isBuffering: next });
+    };
+
+    const onWait   = () => { setBuffering(true);  emitBufferState(true); };
+    const onPlaying= () => { setBuffering(false); emitBufferState(false); };
     const onFullsc = () => setFullscreen(!!document.fullscreenElement);
 
     const onPlayEvent = () => {

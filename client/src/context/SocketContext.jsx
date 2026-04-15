@@ -5,7 +5,30 @@ import { useAuth } from './AuthContext';
 const SocketContext = createContext(null);
 
 const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || `http://${runtimeHost}:5000`;
+
+const resolveSocketUrl = () => {
+  const envUrl = import.meta.env.VITE_SOCKET_URL;
+  const fallbackSocketUrl = `http://${runtimeHost}:5000`;
+
+  if (!envUrl) return fallbackSocketUrl;
+
+  try {
+    const parsed = new URL(envUrl);
+    const isEnvLocalhost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+    const isRuntimeLocalhost = runtimeHost === 'localhost' || runtimeHost === '127.0.0.1';
+
+    if (isEnvLocalhost && !isRuntimeLocalhost) {
+      parsed.hostname = runtimeHost;
+      return parsed.toString().replace(/\/$/, '');
+    }
+
+    return envUrl;
+  } catch {
+    return fallbackSocketUrl;
+  }
+};
+
+const SOCKET_URL = resolveSocketUrl();
 
 export const SocketProvider = ({ children }) => {
   const { user } = useAuth();

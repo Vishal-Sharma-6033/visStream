@@ -130,15 +130,25 @@ const syncHandler = (io, socket) => {
 
     socket.to(roomId).emit('video:buffer', { socketId: socket.id, username: user.username, isBuffering });
 
-    if (isBuffering) {
-      socket.to(roomId).emit('video:pause', { currentTime: null });
-      io.to(roomId).emit('sync:stalled', { username: user.username, isBuffering: true });
-    } else {
-      const anyoneBuffering = [...room.members.values()].some(m => m.isBuffering);
-      if (!anyoneBuffering) {
+    // Only host buffering should pause/resume everyone.
+    // Guest-side network hiccups should not stall the room globally.
+    const senderIsHost = isHost(roomId, socket.id);
+
+    if (senderIsHost) {
+      if (isBuffering) {
+        socket.to(roomId).emit('video:pause', { currentTime: null });
+        io.to(roomId).emit('sync:stalled', { username: user.username, isBuffering: true });
+      } else {
         io.to(roomId).emit('video:play', { currentTime: null });
         io.to(roomId).emit('sync:stalled', { isBuffering: false });
       }
+      return;
+    }
+
+    // For guest buffering, only clear stale stalled overlays if host is healthy.
+    const hostIsBuffering = room.hostSocketId ? room.members.get(room.hostSocketId)?.isBuffering : false;
+    if (!hostIsBuffering) {
+      io.to(roomId).emit('sync:stalled', { isBuffering: false });
     }
   });
 

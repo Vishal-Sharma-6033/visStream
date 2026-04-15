@@ -3,6 +3,12 @@ import Hls from 'hls.js';
 /**
  * HLS service — wraps hls.js with quality management.
  */
+
+const isMobileClient = () => {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+};
+
 class HlsService {
   constructor() {
     this.hls         = null;
@@ -31,13 +37,19 @@ class HlsService {
 
     if (!Hls.isSupported()) { this.onError?.('HLS not supported in this browser'); return; }
 
+    const isMobile = isMobileClient();
+
     this.hls = new Hls({
       enableWorker:     true,
       lowLatencyMode:   false,
       backBufferLength: 60,
-      maxBufferLength:  30,
-      maxMaxBufferLength: 60,
-      startLevel: -1, // ABR auto-select
+      maxBufferLength:  isMobile ? 20 : 30,
+      maxMaxBufferLength: isMobile ? 40 : 60,
+      capLevelToPlayerSize: true,
+      startLevel: isMobile ? 0 : -1, // mobile starts lower to avoid startup stalls
+      abrEwmaDefaultEstimate: isMobile ? 700000 : 5000000,
+      abrBandWidthFactor: isMobile ? 0.8 : 0.95,
+      abrBandWidthUpFactor: isMobile ? 0.6 : 0.7,
     });
 
     this.hls.loadSource(src);

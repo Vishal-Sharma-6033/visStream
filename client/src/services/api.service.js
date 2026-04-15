@@ -1,10 +1,31 @@
 import axios from 'axios';
 
 const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-const fallbackApiUrl = `http://${runtimeHost}:5000`;
+
+const resolveApiUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  const fallbackApiUrl = `http://${runtimeHost}:5000`;
+
+  if (!envUrl) return fallbackApiUrl;
+
+  try {
+    const parsed = new URL(envUrl);
+    const isEnvLocalhost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+    const isRuntimeLocalhost = runtimeHost === 'localhost' || runtimeHost === '127.0.0.1';
+
+    if (isEnvLocalhost && !isRuntimeLocalhost) {
+      parsed.hostname = runtimeHost;
+      return parsed.toString().replace(/\/$/, '');
+    }
+
+    return envUrl;
+  } catch {
+    return fallbackApiUrl;
+  }
+};
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || fallbackApiUrl,
+  baseURL: resolveApiUrl(),
   timeout: 30000,
 });
 
